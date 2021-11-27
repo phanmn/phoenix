@@ -499,6 +499,11 @@ defmodule Phoenix.Socket do
     :erlang.garbage_collect(self())
     {:ok, state}
   end
+  
+  def __info__({:fullsweep_after, value}, state) do
+    :erlang.process_flag(:fullsweep_after, value)
+    {:ok, state}
+  end
 
   def __info__(_, state) do
     {:ok, state}
