@@ -26,7 +26,7 @@ defmodule Phoenix.Socket.Message do
       %Phoenix.Socket.Message{
         topic: Map.fetch!(map, "topic"),
         event: Map.fetch!(map, "event"),
-        payload: Map.fetch!(map, "payload"),
+        payload: Map.get(map, "payload", %{}),
         ref: Map.fetch!(map, "ref"),
         join_ref: Map.get(map, "join_ref")
       }
