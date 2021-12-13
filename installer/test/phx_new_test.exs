@@ -52,7 +52,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       end
 
       assert_file "phx_blog/config/prod.exs", fn file ->
-        assert file =~ "port: 80"
+        assert file =~ "port: 443"
       end
 
       assert_file "phx_blog/config/runtime.exs", ~r/ip: {0, 0, 0, 0, 0, 0, 0, 0}/
@@ -143,7 +143,18 @@ defmodule Mix.Tasks.Phx.NewTest do
       end
       assert_file "phx_blog/config/dev.exs", config
       assert_file "phx_blog/config/test.exs", config
-      assert_file "phx_blog/config/runtime.exs", config
+      assert_file "phx_blog/config/runtime.exs", fn file ->
+        assert file =~ config
+        assert file =~ ~S|maybe_ipv6 = if System.get_env("ECTO_IPV6"), do: [:inet6], else: []|
+        assert file =~ ~S|socket_options: maybe_ipv6|
+        assert file =~ """
+        if System.get_env("PHX_SERVER") && System.get_env("RELEASE_NAME") do
+          config :phx_blog, PhxBlogWeb.Endpoint, server: true
+        end
+        """
+        assert file =~ ~S[host = System.get_env("PHX_HOST") || "example.com"]
+        assert file =~ ~S|url: [host: host, port: 443],|
+      end
       assert_file "phx_blog/config/test.exs", ~R/database: "phx_blog_test#\{System.get_env\("MIX_TEST_PARTITION"\)\}"/
       assert_file "phx_blog/lib/phx_blog/repo.ex", ~r"defmodule PhxBlog.Repo"
       assert_file "phx_blog/lib/phx_blog_web.ex", ~r"defmodule PhxBlogWeb"
