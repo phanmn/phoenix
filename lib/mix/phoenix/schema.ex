@@ -33,6 +33,8 @@ defmodule Mix.Phoenix.Schema do
             web_namespace: nil,
             context_app: nil,
             route_helper: nil,
+            route_prefix: nil,
+            api_route_prefix: nil,
             migration_module: nil,
             fixture_unique_functions: %{},
             fixture_params: %{},
@@ -81,6 +83,7 @@ defmodule Mix.Phoenix.Schema do
     types = types(attrs)
     web_namespace = opts[:web] && Phoenix.Naming.camelize(opts[:web])
     web_path = web_namespace && Phoenix.Naming.underscore(web_namespace)
+    api_prefix = Application.get_env(otp_app, :generators)[:api_prefix] || "/api"
     embedded? = Keyword.get(opts, :embedded, false)
     generate? = Keyword.get(opts, :schema, true)
 
@@ -132,6 +135,8 @@ defmodule Mix.Phoenix.Schema do
       web_namespace: web_namespace,
       web_path: web_path,
       route_helper: route_helper(web_path, singular),
+      route_prefix: route_prefix(web_path, schema_plural),
+      api_route_prefix: api_route_prefix(web_path, schema_plural, api_prefix),
       sample_id: sample_id(opts),
       context_app: ctx_app,
       generate?: generate?,
@@ -303,8 +308,8 @@ defmodule Mix.Phoenix.Schema do
         :time           -> ~T[14:00:00]
         :time_usec      -> ~T[14:00:00.000000]
         :uuid           -> "7488a646-e31f-11e4-aace-600308960662"
-        :utc_datetime   -> DateTime.add(build_utc_datetime(), -@one_day_in_seconds)
-        :utc_datetime_usec -> DateTime.add(build_utc_datetime_usec(), -@one_day_in_seconds)
+        :utc_datetime   -> DateTime.add(build_utc_datetime(), -@one_day_in_seconds, :second, Calendar.UTCOnlyTimeZoneDatabase)
+        :utc_datetime_usec -> DateTime.add(build_utc_datetime_usec(), -@one_day_in_seconds, :second, Calendar.UTCOnlyTimeZoneDatabase)
         :naive_datetime -> NaiveDateTime.add(build_utc_naive_datetime(), -@one_day_in_seconds)
         :naive_datetime_usec -> NaiveDateTime.add(build_utc_naive_datetime_usec(), -@one_day_in_seconds)
         _  -> "some #{key}"
@@ -351,7 +356,6 @@ defmodule Mix.Phoenix.Schema do
 
   defp build_utc_naive_datetime,
     do: NaiveDateTime.truncate(build_utc_naive_datetime_usec(), :second)
-
 
   @enum_missing_value_error """
   Enum type requires at least one value
@@ -474,6 +478,16 @@ defmodule Mix.Phoenix.Schema do
     "#{web_path}_#{singular}"
     |> String.trim_leading("_")
     |> String.replace("/", "_")
+  end
+
+  defp route_prefix(web_path, plural) do
+    path = Path.join(for str <- [web_path, plural], do: to_string(str))
+    "/" <> String.trim_leading(path, "/")
+  end
+
+  defp api_route_prefix(web_path, plural, api_prefix) do
+    path = Path.join(for str <- [api_prefix, web_path, plural], do: to_string(str))
+    "/" <> String.trim_leading(path, "/")
   end
 
   defp migration_module do

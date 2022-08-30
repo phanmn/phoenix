@@ -213,6 +213,8 @@ defmodule Phoenix.Endpoint do
 
       The default format is used when none is set in the connection
 
+    * `:log_access_url` - log the access url once the server boots
+
   ### Adapter configuration
 
   Phoenix allows you to choose which webserver adapter to use. The default
@@ -357,7 +359,7 @@ defmodule Phoenix.Endpoint do
 
   Raises in case of failures.
   """
-  @callback broadcast!(topic, event, msg) :: :ok | no_return
+  @callback broadcast!(topic, event, msg) :: :ok
 
   @doc """
   Broadcasts a `msg` from the given `from` as `event` in the given `topic` to all nodes.
@@ -369,7 +371,7 @@ defmodule Phoenix.Endpoint do
 
   Raises in case of failures.
   """
-  @callback broadcast_from!(from :: pid, topic, event, msg) :: :ok | no_return
+  @callback broadcast_from!(from :: pid, topic, event, msg) :: :ok
 
   @doc """
   Broadcasts a `msg` as `event` in the given `topic` within the current node.
@@ -398,12 +400,6 @@ defmodule Phoenix.Endpoint do
       @otp_app unquote(opts)[:otp_app] || raise "endpoint expects :otp_app to be given"
       var!(config) = Phoenix.Endpoint.Supervisor.config(@otp_app, __MODULE__)
       var!(code_reloading?) = var!(config)[:code_reloader]
-      @compile_config Keyword.take(var!(config), Phoenix.Endpoint.Supervisor.compile_config_keys())
-
-      @doc false
-      def __compile_config__ do
-        @compile_config
-      end
 
       # Avoid unused variable warnings
       _ = var!(code_reloading?)
@@ -500,11 +496,6 @@ defmodule Phoenix.Endpoint do
 
       @doc """
       Starts the endpoint supervision tree.
-
-      ## Options
-
-        * `:log_access_url` - if the access url should be logged
-          once the endpoint starts
 
       All other options are merged into the endpoint configuration.
       """
@@ -648,8 +639,7 @@ defmodule Phoenix.Endpoint do
 
       # Inline render errors so we set the endpoint before calling it.
       def call(conn, opts) do
-        conn = put_in conn.secret_key_base, config(:secret_key_base)
-        conn = put_in conn.script_name, script_name()
+        conn = %{conn | script_name: script_name(), secret_key_base: config(:secret_key_base)}
         conn = Plug.Conn.put_private(conn, :phoenix_endpoint, __MODULE__)
 
         try do
@@ -716,9 +706,14 @@ defmodule Phoenix.Endpoint do
             conn
           end
         else
-          params_map = {:%{}, [], Plug.Router.Utils.build_path_params_match(vars)}
+          params =
+            for var <- vars,
+                param = Atom.to_string(var),
+                not match?("_" <> _, param),
+                do: {param, Macro.var(var, nil)}
+
           quote do
-            params = unquote(params_map)
+            params = %{unquote_splicing(params)}
             %Plug.Conn{conn | path_params: params, params: params}
           end
         end
@@ -735,13 +730,15 @@ defmodule Phoenix.Endpoint do
 
     * `:websocket` - controls the websocket configuration.
       Defaults to `true`. May be false or a keyword list
-      of options. See "Common configuration" and
-      "WebSocket configuration" for the whole list
+      of options. See ["Common configuration"](#socket/3-common-configuration)
+      and ["WebSocket configuration"](#socket/3-websocket-configuration)
+      for the whole list
 
     * `:longpoll` - controls the longpoll configuration.
       Defaults to `false`. May be true or a keyword list
-      of options. See "Common configuration" and
-      "Longpoll configuration" for the whole list
+      of options. See ["Common configuration"](#socket/3-common-configuration)
+      and ["Longpoll configuration"](#socket/3-longpoll-configuration)
+      for the whole list
 
   If your socket is implemented using `Phoenix.Socket`,
   you can also pass to each transport above all options
@@ -798,12 +795,16 @@ defmodule Phoenix.Endpoint do
             "//*.other.com"
           ]
 
+      Or to accept any origin matching the request connection's host, port, and scheme:
+
+          check_origin: :conn
+
       Or a custom MFA function:
 
           check_origin: {MyAppWeb.Auth, :my_check_origin?, []}
 
       The MFA is invoked with the request `%URI{}` as the first argument,
-      followed by arguments in the MFA list.
+      followed by arguments in the MFA list, and must return a boolean.
 
     * `:code_reloader` - enable or disable the code reloader. Defaults to your
       endpoint configuration
@@ -840,17 +841,21 @@ defmodule Phoenix.Endpoint do
 
       For example:
 
-          socket "/socket", AppWeb.UserSocket,
+      ```
+        socket "/socket", AppWeb.UserSocket,
             websocket: [
               connect_info: [:peer_data, :trace_context_headers, :x_headers, :uri, session: [store: :cookie]]
             ]
+      ```
 
       With arbitrary keywords:
 
-          socket "/socket", AppWeb.UserSocket,
+      ```
+        socket "/socket", AppWeb.UserSocket,
             websocket: [
               connect_info: [:uri, custom_value: "abcdef"]
             ]
+      ```
 
   ## Websocket configuration
 
@@ -894,10 +899,10 @@ defmodule Phoenix.Endpoint do
   The following configuration applies only to `:longpoll`:
 
     * `:window_ms` - how long the client can wait for new messages
-      in its poll request, defaults to 10_000ms.
+      in its poll request in milliseconds (ms). Defaults to `10_000`.
 
     * `:pubsub_timeout_ms` - how long a request can wait for the
-      pubsub layer to respond, defaults to 2000ms.
+      pubsub layer to respond in milliseconds (ms). Defaults to `2000`.
 
     * `:crypto` - options for verifying and signing the token, accepted
       by `Phoenix.Token`. By default tokens are valid for 2 weeks

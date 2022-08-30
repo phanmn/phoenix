@@ -32,10 +32,20 @@ defmodule Mix.Tasks.Phx.NewTest do
 
       assert_file "phx_blog/README.md"
 
-      assert_file "phx_blog/.formatter.exs", fn file ->
-        assert file =~ "import_deps: [:ecto, :phoenix]"
-        assert file =~ "inputs: [\"*.{ex,exs}\", \"priv/*/seeds.exs\", \"{config,lib,test}/**/*.{ex,exs}\"]"
-        assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+      if Version.match?(System.version(), ">= 1.13.4") do
+        assert_file "phx_blog/.formatter.exs", fn file ->
+          assert file =~ "import_deps: [:ecto, :phoenix]"
+          assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+          assert file =~ "plugins: [Phoenix.LiveView.HTMLFormatter]"
+          assert file =~ "inputs: [\"*.{heex,ex,exs}\", \"{config,lib,test}/**/*.{heex,ex,exs}\", \"priv/*/seeds.exs\"]"
+        end
+      else
+        assert_file "phx_blog/.formatter.exs", fn file ->
+          assert file =~ "import_deps: [:ecto, :phoenix]"
+          assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+          assert file =~ "inputs: [\"*.{ex,exs}\", \"{config,lib,test}/**/*.{ex,exs}\", \"priv/*/seeds.exs\"]"
+          refute file =~ "plugins:"
+        end
       end
 
       assert_file "phx_blog/mix.exs", fn file ->
@@ -97,7 +107,10 @@ defmodule Mix.Tasks.Phx.NewTest do
         assert file =~ ~s|plug Phoenix.LiveDashboard.RequestLogger|
       end
 
-      assert_file "phx_blog/lib/phx_blog_web/templates/layout/root.html.heex"
+      assert_file "phx_blog/lib/phx_blog_web/templates/layout/root.html.heex", fn file ->
+        assert file =~ ~s|<meta name="csrf-token" content={get_csrf_token()}>|
+      end
+
       assert_file "phx_blog/lib/phx_blog_web/templates/layout/app.html.heex"
 
       assert_file "phx_blog/lib/phx_blog_web/templates/page/index.html.heex", fn file ->
@@ -148,12 +161,12 @@ defmodule Mix.Tasks.Phx.NewTest do
         assert file =~ ~S|maybe_ipv6 = if System.get_env("ECTO_IPV6"), do: [:inet6], else: []|
         assert file =~ ~S|socket_options: maybe_ipv6|
         assert file =~ """
-        if System.get_env("PHX_SERVER") && System.get_env("RELEASE_NAME") do
+        if System.get_env("PHX_SERVER") do
           config :phx_blog, PhxBlogWeb.Endpoint, server: true
         end
         """
         assert file =~ ~S[host = System.get_env("PHX_HOST") || "example.com"]
-        assert file =~ ~S|url: [host: host, port: 443],|
+        assert file =~ ~S|url: [host: host, port: 443, scheme: "https"],|
       end
       assert_file "phx_blog/config/test.exs", ~R/database: "phx_blog_test#\{System.get_env\("MIX_TEST_PARTITION"\)\}"/
       assert_file "phx_blog/lib/phx_blog/repo.ex", ~r"defmodule PhxBlog.Repo"
@@ -209,12 +222,16 @@ defmodule Mix.Tasks.Phx.NewTest do
       end
 
       assert_file "phx_blog/config/config.exs", fn file ->
-        assert file =~ "config :swoosh"
         assert file =~ "config :phx_blog, PhxBlog.Mailer, adapter: Swoosh.Adapters.Local"
       end
 
       assert_file "phx_blog/config/test.exs", fn file ->
+        assert file =~ "config :swoosh"
         assert file =~ "config :phx_blog, PhxBlog.Mailer, adapter: Swoosh.Adapters.Test"
+      end
+
+      assert_file "phx_blog/config/dev.exs", fn file ->
+        assert file =~ "config :swoosh"
       end
 
       # Install dependencies?
@@ -347,6 +364,15 @@ defmodule Mix.Tasks.Phx.NewTest do
         refute file =~ "config :swoosh"
         refute file =~ "config :phx_blog, PhxBlog.Mailer, adapter: Swoosh.Adapters.Local"
       end
+
+      assert_file "phx_blog/config/test.exs", fn file ->
+        refute file =~ "config :swoosh"
+        refute file =~ "config :phx_blog, PhxBlog.Mailer, adapter: Swoosh.Adapters.Test"
+      end
+
+      assert_file "phx_blog/config/dev.exs", fn file ->
+        refute file =~ "config :swoosh"
+      end
     end
   end
 
@@ -357,7 +383,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       assert_file "phx_blog/mix.exs", &refute(&1 =~ ~r":phoenix_live_dashboard")
 
       assert_file "phx_blog/lib/phx_blog_web/templates/layout/app.html.heex", fn file ->
-        refute file =~ ~s|<%= link "LiveDashboard", to: Routes.live_dashboard_path(@conn, :home)|
+        refute file =~ ~s|LiveDashboard|
       end
 
       assert_file "phx_blog/lib/phx_blog_web/endpoint.ex", fn file ->
@@ -388,6 +414,13 @@ defmodule Mix.Tasks.Phx.NewTest do
         refute file =~ ~s|:phoenix_live_view|
         refute file =~ ~s|:phoenix_html|
         assert file =~ ~s|:phoenix_live_dashboard|
+      end
+
+      assert_file "phx_blog/.formatter.exs", fn file ->
+        assert file =~ "import_deps: [:ecto, :phoenix]"
+        assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+        assert file =~ "inputs: [\"*.{ex,exs}\", \"{config,lib,test}/**/*.{ex,exs}\", \"priv/*/seeds.exs\"]"
+        refute file =~ "plugins:"
       end
 
       assert_file "phx_blog/lib/phx_blog_web/endpoint.ex", fn file ->
@@ -426,6 +459,25 @@ defmodule Mix.Tasks.Phx.NewTest do
 
       assert_file "phx_blog/config/config.exs", fn file ->
         refute file =~ "config :esbuild"
+      end
+
+      assert_file "phx_blog/config/prod.exs", fn file ->
+        refute file =~ "config :phx_blog, PhxBlogWeb.Endpoint, cache_static_manifest:"
+      end
+    end
+  end
+
+  test "new with --no-ecto" do
+    in_tmp "new with no_ecto", fn ->
+      Mix.Tasks.Phx.New.run([@app_name, "--no-ecto"])
+
+      if Version.match?(System.version(), ">= 1.13.4") do
+        assert_file "phx_blog/.formatter.exs", fn file ->
+          assert file =~ "import_deps: [:phoenix]"
+          assert file =~ "plugins: [Phoenix.LiveView.HTMLFormatter]"
+          assert file =~ "inputs: [\"*.{heex,ex,exs}\", \"{config,lib,test}/**/*.{heex,ex,exs}\"]"
+          refute file =~ "subdirectories:"
+        end
       end
     end
   end
@@ -511,8 +563,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       assert_file "custom_path/config/runtime.exs", [~r/url: database_url/]
       assert_file "custom_path/lib/custom_path/repo.ex", "Ecto.Adapters.Postgres"
 
-      assert_file "custom_path/test/support/conn_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file "custom_path/test/support/channel_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file "custom_path/test/support/conn_case.ex", "DataCase.setup_sandbox(tags)"
       assert_file "custom_path/test/support/data_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
     end
   end
@@ -528,8 +579,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       assert_file "custom_path/config/runtime.exs", [~r/url: database_url/]
       assert_file "custom_path/lib/custom_path/repo.ex", "Ecto.Adapters.MyXQL"
 
-      assert_file "custom_path/test/support/conn_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file "custom_path/test/support/channel_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file "custom_path/test/support/conn_case.ex", "DataCase.setup_sandbox(tags)"
       assert_file "custom_path/test/support/data_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
     end
   end
@@ -545,8 +595,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       assert_file "custom_path/config/runtime.exs", [~r/database: database_path/]
       assert_file "custom_path/lib/custom_path/repo.ex", "Ecto.Adapters.SQLite3"
 
-      assert_file "custom_path/test/support/conn_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file "custom_path/test/support/channel_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file "custom_path/test/support/conn_case.ex", "DataCase.setup_sandbox(tags)"
       assert_file "custom_path/test/support/data_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
 
       assert_file "custom_path/.gitignore", "*.db"
@@ -565,8 +614,7 @@ defmodule Mix.Tasks.Phx.NewTest do
       assert_file "custom_path/config/runtime.exs", [~r/url: database_url/]
       assert_file "custom_path/lib/custom_path/repo.ex", "Ecto.Adapters.Tds"
 
-      assert_file "custom_path/test/support/conn_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file "custom_path/test/support/channel_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file "custom_path/test/support/conn_case.ex", "DataCase.setup_sandbox(tags)"
       assert_file "custom_path/test/support/data_case.ex", "Ecto.Adapters.SQL.Sandbox.start_owner"
     end
   end

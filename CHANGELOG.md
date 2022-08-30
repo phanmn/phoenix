@@ -1,8 +1,101 @@
+# Changelog for v1.7
+
+Phoenix v1.7 requires Elixir v1.11+.
+
+## Introduction of Verified Routes
+
+Phoenix 1.7 includes a new `Phoenix.VerifiedRoutes` feature which provides `~p`
+for route generation with compile-time verification.
+
+Use of the `sigil_p` macro allows paths and URLs throughout your
+application to be compile-time verified against your Phoenix router(s).
+For example the following path and URL usages:
+
+    <.link href={~p"/sessions/new"} method="post">Sign in</.link>
+
+    redirect(to: url(~p"/posts/#{post}"))
+
+Will be verified against your standard `Phoenix.Router` definitions:
+
+    get "/posts/:post_id", PostController, :show
+    post "/sessions/new", SessionController, :create
+
+Unmatched routes will issue compiler warnings:
+
+    warning: no route path for AppWeb.Router matches "/postz/#{post}"
+      lib/app_web/controllers/post_controller.ex:100: AppWeb.PostController.show/2
+
+*Note: Elixir >= 1.14.0 is required for comprehensive warnings. Older versions
+will work properly and warn on new compilations, but changes to the router file
+will not issue new warnings.
+
+This feature replaces the `Helpers` module generated in your Phoenix router, but helpers
+will continue to work and be generated. You can disable router helpers by passing the
+`helpers: false` option to `use Phoenix.Router`.
+
+## 1.7.0-dev
+
+### Enhancements
+  * [Router] Add `Phoenix.VerifiedRoutes` for `~p`-based route generation with compile-time verification.
+  * [Router] Support `helpers: false` to `use Phoenix.Router` to disable helper generation
+
+### JavaScript Client Bug Fixes
+  * Fix heartbeat being sent after disconnect and causing abnormal disconnects
+
 # Changelog for v1.6
 
 See the [upgrade guide](https://gist.github.com/chrismccord/2ab350f154235ad4a4d0f4de6decba7b) to upgrade from Phoenix 1.5.x.
 
 Phoenix v1.6 requires Elixir v1.9+.
+
+## 1.6.11 (2022-07-11)
+
+### JavaScript Client Enhancements
+ * Add convenience for getting longpoll reference with  `getLongPollTransport`
+
+### JavaScript Client Bug Fixes
+  * Cancel inflight longpoll requests on canceled longpoll session
+  * Do not attempt to flush socket buffer when tearing down socket on `replaceTransport`
+
+## 1.6.10 (2022-06-01)
+
+### JavaScript Client Enhancements
+  * Add `ping` function to socket
+
+## 1.6.9 (2022-05-16)
+
+### Bug Fixes
+  * [phx.gen.release] Fix generated .dockerignore comment
+
+## 1.6.8 (2022-05-06)
+
+### Bug Fixes
+  * [phx.gen.release] Fix Ecto check failing to find Ecto in certain cases
+
+## 1.6.7 (2022-04-14)
+
+### Enhancements
+  * [Endpoint] Add Endpoint init telemetry event
+  * [Endpoint] Prioritize user :http configuration for ranch  to fix inet_backend failing to be respected
+  * [Logger] Support log_module in router metadata
+  * [phx.gen.release] Don't handle assets in Docker when directory doesn't exist
+  * [phx.gen.release] Skip generating migration files when ecto_sql is not installed
+
+### JavaScript Client Enhancements
+  * Switch to .mjs files for ESM for better compatibility across build tools
+
+### JavaScript Client Bug Fixes
+  * Fix LongPoll callbacks in JS client causing errors on connection close
+
+## 1.6.6 (2022-01-04)
+
+### Bug Fixes
+  * [Endpoint] Fix `check_origin: :conn` failing to match scheme
+
+## 1.6.5 (2021-12-16)
+
+### Enhancements
+  * [Endpoint] Support `check_origin: :conn` to enforce origin on the connection's host, port, and scheme
 
 ## 1.6.4 (2021-12-08)
 

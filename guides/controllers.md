@@ -149,6 +149,14 @@ Passing more than one value to our template is as simple as connecting [`assign/
   end
 ```
 
+Or you can pass the assigns directly to `render` instead:
+
+```elixir
+  def show(conn, %{"messenger" => messenger}) do
+    render(conn, "show.html", messenger: messenger, receiver: "Dweezil")
+  end
+```
+
 Generally speaking, once all assigns are configured, we invoke the view layer. The view layer then renders `show.html` alongside the layout and a response is sent back to the browser.
 
 [Views and templates](views.html) have their own guide, so we won't spend much time on them here. What we will look at is how to assign a different layout, or none at all, from inside a controller action.
@@ -179,15 +187,15 @@ Now let's actually create another layout and render the index template into it. 
 
 Remove these lines:
 
-```html
+```heex
 <a href="https://phoenixframework.org/" class="phx-logo">
-  <img src={Routes.static_path(@conn, "/images/phoenix.png")} alt="Phoenix Framework Logo"/>
+  <img src={~p"/images/phoenix.png"} alt="Phoenix Framework Logo"/>
 </a>
 ```
 
 Replace them with:
 
-```html
+```heex
 <p>Administration</p>
 ```
 
@@ -219,7 +227,7 @@ end
 
 What it doesn't have is an alternative template for rendering text. Let's add one at `lib/hello_web/templates/page/index.text.eex`. Here is our example `index.text.eex` template.
 
-```html
+```heex
 OMG, this is actually some text.
 ```
 
@@ -341,19 +349,13 @@ defmodule HelloWeb.PageController do
   use HelloWeb, :controller
 
   def index(conn, _params) do
-    redirect(conn, to: "/redirect_test")
+    redirect(conn, to: ~p"/redirect_test")
   end
 end
 
 ```
 
-Actually, we should make use of the path helpers, which are the preferred approach to link to any page within our application, as we learned about in the [routing guide](routing.html).
-
-```elixir
-def index(conn, _params) do
-  redirect(conn, to: Routes.page_path(conn, :redirect_test))
-end
-```
+We made use of `Phoenix.VerifiedRoutes.sigil_p/2` to build our redirect path, which is the preferred approach to reference any path within our application. We learned about verified routes in the [routing guide](routing.html).
 
 Finally, let's define in the same file the action we redirect to, which simply renders the index, but now under a new address:
 
@@ -367,7 +369,7 @@ When we reload our [welcome page], we see that we've been redirected to `/redire
 
 If we care to, we can open up our developer tools, click on the network tab, and visit our root route again. We see two main requests for this page - a get to `/` with a status of `302`, and a get to `/redirect_test` with a status of `200`.
 
-Notice that the redirect function takes `conn` as well as a string representing a relative path within our application. For security reasons, the `:to` helper can only redirect for paths within your application. If you want to redirect to a fully-qualified path or an external URL, you should use `:external` instead:
+Notice that the redirect function takes `conn` as well as a string representing a relative path within our application. For security reasons, the `:to` option can only redirect to paths within your application. If you want to redirect to a fully-qualified path or an external URL, you should use `:external` instead:
 
 ```elixir
 def index(conn, _params) do
@@ -399,7 +401,7 @@ In order to see our flash messages, we need to be able to retrieve them and disp
 
 For our convenience, the application layout, `lib/hello_web/templates/layout/app.html.heex`, already has markup for displaying flash messages.
 
-```html
+```heex
 <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
 <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
 ```
@@ -413,7 +415,7 @@ The flash functionality is handy when mixed with redirects. Perhaps you want to 
     conn
     |> put_flash(:info, "Welcome to Phoenix, from flash info!")
     |> put_flash(:error, "Let's pretend we have an error.")
-    |> redirect(to: Routes.page_path(conn, :redirect_test))
+    |> redirect(to: ~p"/redirect_test"))
   end
 ```
 
@@ -425,7 +427,7 @@ Phoenix does not enforce which keys are stored in the flash. As long as we are i
 
 ## Action fallback
 
-Action fallback allows us to centralize error handling code in plugs which are called when a controller action fails to return a [`%Plug.Conn{}`](`t:Plug.Conn.t/0`) struct. These plugs receive both the `conn` which was originally passed to the controller action along with the return value of the action.
+Action fallback allows us to centralize error handling code in plugs, which are called when a controller action fails to return a [`%Plug.Conn{}`](`t:Plug.Conn.t/0`) struct. These plugs receive both the `conn` which was originally passed to the controller action along with the return value of the action.
 
 Let's say we have a `show` action which uses [`with`](`with/1`) to fetch a blog post and then authorize the current user to view that blog post. In this example we might expect `fetch_post/1` to return `{:error, :not_found}` if the post is not found and `authorize_user/3` might return `{:error, :unauthorized}` if the user is unauthorized. We could use `ErrorView` which is generated by Phoenix for every new application to handle these error paths accordingly:
 

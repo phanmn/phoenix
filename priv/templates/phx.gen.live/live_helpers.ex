@@ -1,6 +1,5 @@
 defmodule <%= inspect context.web_module %>.LiveHelpers do
-  import Phoenix.LiveView
-  import Phoenix.LiveView.Helpers
+  use Phoenix.Component
 
   alias Phoenix.LiveView.JS
 
@@ -12,17 +11,20 @@ defmodule <%= inspect context.web_module %>.LiveHelpers do
 
   ## Examples
 
-      <.modal return_to={Routes.<%= schema.singular %>_index_path(@socket, :index)}>
+      <.modal return_to={Routes.<%= schema.route_helper %>_index_path(@socket, :index)}>
         <.live_component
           module={<%= inspect context.web_module %>.<%= inspect Module.concat(schema.web_namespace, schema.alias) %>Live.FormComponent}
           id={@<%= schema.singular %>.id || :new}
           title={@page_title}
           action={@live_action}
-          return_to={Routes.<%= schema.singular %>_index_path(@socket, :index)}
-          <%= schema.singular %>: @<%= schema.singular %>
+          <%= schema.singular %>={@<%= schema.singular %>}
+          return_to={Routes.<%= schema.route_helper %>_index_path(@socket, :index)}
         />
       </.modal>
   """
+
+  attr :return_to, :string, default: nil
+
   def modal(assigns) do
     assigns = assign_new(assigns, :return_to, fn -> nil end)
 
@@ -36,16 +38,10 @@ defmodule <%= inspect context.web_module %>.LiveHelpers do
         phx-key="escape"
       >
         <%%= if @return_to do %>
-          <%%= live_patch "✖",
-            to: @return_to,
-            id: "close",
-            class: "phx-modal-close",
-            phx_click: hide_modal()
-          %>
+          <.link id="close" patch={@return_to} phx-click={hide_modal()} class="phx-modal-close">✖</.link>
         <%% else %>
-         <a id="close" href="#" class="phx-modal-close" phx-click={hide_modal()}>✖</a>
+          <.link id="close" phx-click={hide_modal()} class="phx-modal-close">✖</.link>
         <%% end %>
-
         <%%= render_slot(@inner_block) %>
       </div>
     </div>

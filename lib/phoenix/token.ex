@@ -92,8 +92,18 @@ defmodule Phoenix.Token do
 
   require Logger
 
+  @type context :: Plug.Conn.t() | Phoenix.Socket.t() | atom | binary
+
+  @type shared_opt ::
+          {:key_iterations, pos_integer}
+          | {:key_length, pos_integer}
+          | {:key_digest, :sha256 | :sha384 | :sha512}
+
+  @type max_age_opt :: {:max_age, pos_integer}
+  @type signed_at_opt :: {:signed_at, pos_integer}
+
   @doc """
-  Encodes  and signs data into a token you can send to clients.
+  Encodes and signs data into a token you can send to clients.
 
   ## Options
 
@@ -107,6 +117,7 @@ defmodule Phoenix.Token do
       Defaults to `System.system_time(:second)`
 
   """
+  @spec sign(context, binary, term, [shared_opt | signed_at_opt]) :: binary
   def sign(context, salt, data, opts \\ []) when is_binary(salt) do
     context
     |> get_key_base()
@@ -128,6 +139,7 @@ defmodule Phoenix.Token do
       Defaults to `System.system_time(:second)`
 
   """
+  @spec encrypt(context, binary, term, [shared_opt | signed_at_opt]) :: binary
   def encrypt(context, secret, data, opts \\ []) when is_binary(secret) do
     context
     |> get_key_base()
@@ -163,7 +175,7 @@ defmodule Phoenix.Token do
   returned a tuple of type `{:ok, user_id}`. The server can now proceed with
   the request.
 
-  However, if the client had sent an expired or otherwise invalid token
+  However, if the client had sent an expired token, an invalid token, or `nil`,
   `verify/4` would have returned an error instead:
 
       iex> Phoenix.Token.verify(secret, namespace, expired, max_age: 86400)
@@ -172,19 +184,24 @@ defmodule Phoenix.Token do
       iex> Phoenix.Token.verify(secret, namespace, invalid, max_age: 86400)
       {:error, :invalid}
 
+      iex> Phoenix.Token.verify(secret, namespace, nil, max_age: 86400)
+      {:error, :missing}
+
   ## Options
 
-    * `:max_age` - verifies the token only if it has been generated
-      "max age" ago in seconds. A reasonable value is 1 day (86400
-      seconds)
     * `:key_iterations` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to 1000
     * `:key_length` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to 32
     * `:key_digest` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to `:sha256`
+    * `:max_age` - verifies the token only if it has been generated
+      "max age" ago in seconds. A reasonable value is 1 day (86400
+      seconds)
 
   """
+  @spec verify(context, binary, binary, [shared_opt | max_age_opt]) ::
+          {:ok, term} | {:error, :expired | :invalid | :missing}
   def verify(context, salt, token, opts \\ []) when is_binary(salt) do
     context
     |> get_key_base()
@@ -196,17 +213,17 @@ defmodule Phoenix.Token do
 
   ## Options
 
-    * `:max_age` - verifies the token only if it has been generated
-      "max age" ago in seconds. A reasonable value is 1 day (86400
-      seconds)
     * `:key_iterations` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to 1000
     * `:key_length` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to 32
     * `:key_digest` - option passed to `Plug.Crypto.KeyGenerator`
       when generating the encryption and signing keys. Defaults to `:sha256`
-
+    * `:max_age` - verifies the token only if it has been generated
+      "max age" ago in seconds. Defaults to the max age signed in the
+      token (86400)
   """
+  @spec decrypt(context, binary, binary, [shared_opt | max_age_opt]) :: term()
   def decrypt(context, secret, token, opts \\ []) when is_binary(secret) do
     context
     |> get_key_base()

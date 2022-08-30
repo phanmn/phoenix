@@ -31,7 +31,7 @@ defmodule Phoenix.Socket.Transport do
 
   Whenever the transport receives a new connection, it should invoke
   the `c:connect/1` callback with a map of metadata. Different sockets
-  may require different metadatas.
+  may require different metadata.
 
   If the connection is accepted, the transport can move the connection
   to another process, if so desires, or keep using the same process. The
@@ -353,7 +353,7 @@ defmodule Phoenix.Socket.Transport do
       is_nil(origin) or check_origin == false ->
         conn
 
-      origin_allowed?(check_origin, URI.parse(origin), endpoint) ->
+      origin_allowed?(check_origin, URI.parse(origin), endpoint, conn) ->
         conn
 
       true ->
@@ -567,8 +567,11 @@ defmodule Phoenix.Socket.Transport do
           {module, function, arguments} ->
             {module, function, arguments}
 
+          :conn ->
+            :conn
+
           invalid ->
-            raise ArgumentError, ":check_origin expects a boolean, list of hosts, or MFA tuple, got: #{inspect(invalid)}"
+            raise ArgumentError, ":check_origin expects a boolean, list of hosts, :conn, or MFA tuple, got: #{inspect(invalid)}"
         end
 
       {:cache, check_origin}
@@ -588,13 +591,20 @@ defmodule Phoenix.Socket.Transport do
     end
   end
 
-  defp origin_allowed?({module, function, arguments}, uri, _endpoint),
+  defp origin_allowed?({module, function, arguments}, uri, _endpoint, _conn),
     do: apply(module, function, [uri | arguments])
-  defp origin_allowed?(_check_origin, %{host: nil}, _endpoint),
+
+  defp origin_allowed?(:conn, uri, _endpoint, %Plug.Conn{} = conn) do
+    uri.host == conn.host and
+      uri.scheme == Atom.to_string(conn.scheme) and
+      uri.port == conn.port
+  end
+
+  defp origin_allowed?(_check_origin, %{host: nil}, _endpoint, _conn),
     do: false
-  defp origin_allowed?(true, uri, endpoint),
+  defp origin_allowed?(true, uri, endpoint, _conn),
     do: compare?(uri.host, host_to_binary(endpoint.config(:url)[:host]))
-  defp origin_allowed?(check_origin, uri, _endpoint) when is_list(check_origin),
+  defp origin_allowed?(check_origin, uri, _endpoint, _conn) when is_list(check_origin),
     do: origin_allowed?(uri, check_origin)
 
   defp origin_allowed?(uri, allowed_origins) do
@@ -618,7 +628,7 @@ defmodule Phoenix.Socket.Transport do
   defp compare_host?(request_host, allowed_host),
     do: request_host == allowed_host
 
-  # TODO: Deprecate {:system, env_var} once we require Elixir v1.9+
+  # TODO: Remove this once {:system, env_var} deprecation is removed
   defp host_to_binary({:system, env_var}), do: host_to_binary(System.get_env(env_var))
   defp host_to_binary(host), do: host
 end

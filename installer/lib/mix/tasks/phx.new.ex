@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Phx.New do
 
     * `--no-assets` - do not generate the assets folder.
       When choosing this option, you will need to manually
-      handle JavaScript/CSS if building HTML apps.
+      handle JavaScript/CSS if building HTML apps
 
     * `--no-ecto` - do not generate Ecto files
 
@@ -211,12 +211,13 @@ defmodule Mix.Tasks.Phx.New do
     maybe_cmd(project, "mix deps.get", true, install? && hex_available?())
   end
 
+  # TODO: Elixir v1.15 automatically installs Hex/Rebar if missing, so we can simplify this.
   defp hex_available? do
     Code.ensure_loaded?(Hex)
   end
 
   defp rebar_available? do
-    Mix.Rebar.rebar_cmd(:rebar) && Mix.Rebar.rebar_cmd(:rebar3)
+    Mix.Rebar.rebar_cmd(:rebar3)
   end
 
   defp print_missing_steps(steps) do

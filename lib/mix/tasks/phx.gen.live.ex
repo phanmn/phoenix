@@ -18,10 +18,10 @@ defmodule Mix.Tasks.Phx.Gen.Live do
   table name), and an optional list of attributes as their respective names and
   types.  See `mix help phx.gen.schema` for more information on attributes.
 
-  When this command is run for the first time, a `ModalComponent` and
-  `LiveHelpers` module will be created, along with the resource level
-  LiveViews and components, including `UserLive.Index`, `UserLive.Show`,
-  and `UserLive.FormComponent` modules for the new resource.
+  When this command is run for the first time, a `LiveHelpers` module will be
+  created, along with the resource level LiveViews and components, including
+  `UserLive.Index`, `UserLive.Show`, and `UserLive.FormComponent` modules for
+  the new resource.
 
   > Note: A resource may also be split
   > over distinct contexts (such as `Accounts.User` and `Payments.User`).
@@ -219,6 +219,18 @@ defmodule Mix.Tasks.Phx.Gen.Live do
       """
     end
     if context.generate?, do: Gen.Context.print_shell_instructions(context)
+    maybe_print_upgrade_info()
+  end
+
+  defp maybe_print_upgrade_info do
+    unless Code.ensure_loaded?(Phoenix.LiveView.JS) do
+      Mix.shell().info """
+
+      You must update :phoenix_live_view to v0.17 or later and
+      :phoenix_live_dashboard to v0.6 or later to use the features
+      in this generator.
+      """
+    end
   end
 
   defp live_route_instructions(schema) do

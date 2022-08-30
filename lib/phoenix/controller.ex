@@ -871,7 +871,7 @@ defmodule Phoenix.Controller do
   Puts the URL or `%URI{}` to be used for the static url generation.
 
   Using this function on a `%Plug.Conn{}` struct tells `static_url/2` to use
-  the given information for URL generation instead of the the `%Plug.Conn{}`'s
+  the given information for URL generation instead of the `%Plug.Conn{}`'s
   endpoint configuration (much like `put_router_url/2` but for static URLs).
   """
   def put_static_url(conn, %URI{} = uri) do
@@ -1006,7 +1006,7 @@ defmodule Phoenix.Controller do
 
   defp warn_if_ajax(conn) do
     if ajax?(conn) do
-      Logger.warn "send_download/3 has been invoked during an AJAX request. " <>
+      Logger.warning "send_download/3 has been invoked during an AJAX request. " <>
                   "The download may not work as expected under XMLHttpRequest"
     end
   end
@@ -1081,20 +1081,17 @@ defmodule Phoenix.Controller do
 
   It sets the following headers:
 
+    * `referrer-policy` - only send origin on cross origin requests
     * `x-frame-options` - set to SAMEORIGIN to avoid clickjacking
       through iframes unless in the same origin
     * `x-content-type-options` - set to nosniff. This requires
       script and style tags to be sent with proper content type
-    * `x-xss-protection` - set to "1; mode=block" to improve XSS
-      protection on both Chrome and IE
     * `x-download-options` - set to noopen to instruct the browser
       not to open a download directly in the browser, to avoid
       HTML files rendering inline and accessing the security
       context of the application (like critical domain cookies)
     * `x-permitted-cross-domain-policies` - set to none to restrict
       Adobe Flash Player’s access to data
-    * `cross-origin-window-policy` - set to deny to avoid window
-      control attacks
 
   A custom headers map may also be given to be merged with defaults.
   It is recommended for custom header keys to be in lowercase, to avoid sending
@@ -1113,12 +1110,14 @@ defmodule Phoenix.Controller do
   end
   defp put_secure_defaults(conn) do
     merge_resp_headers(conn, [
-      {"x-frame-options", "SAMEORIGIN"},
-      {"x-xss-protection", "1; mode=block"},
+      # Below is the default from November 2020 but not yet in Safari as in Jan/2022.
+      # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
+      {"referrer-policy", "strict-origin-when-cross-origin"},
       {"x-content-type-options", "nosniff"},
+      # Applies only to Internet Explorer, can safely be removed in the future.
       {"x-download-options", "noopen"},
-      {"x-permitted-cross-domain-policies", "none"},
-      {"cross-origin-window-policy", "deny"}
+      {"x-frame-options", "SAMEORIGIN"},
+      {"x-permitted-cross-domain-policies", "none"}
     ])
   end
 
@@ -1208,7 +1207,7 @@ defmodule Phoenix.Controller do
       plug :accepts, ["html", "json-api"]
 
   """
-  @spec accepts(Plug.Conn.t, [binary]) :: Plug.Conn.t | no_return()
+  @spec accepts(Plug.Conn.t, [binary]) :: Plug.Conn.t
   def accepts(conn, [_|_] = accepted) do
     case Map.fetch(conn.params, "_format") do
       {:ok, format} ->
@@ -1515,7 +1514,7 @@ defmodule Phoenix.Controller do
   See `current_url/2` to override the default parameters.
   """
   def current_url(%Plug.Conn{} = conn) do
-    Phoenix.Router.Helpers.url(router_module(conn), conn) <> current_path(conn)
+    Phoenix.VerifiedRoutes.unverified_url(conn, current_path(conn))
   end
 
   @doc ~S"""
@@ -1552,17 +1551,16 @@ defmodule Phoenix.Controller do
   For example, to get the current URL always in HTTPS format:
 
       def current_secure_url(conn, params \\ %{}) do
-        cur_uri  = MyAppWeb.Endpoint.struct_url()
-        cur_path = Phoenix.Controller.current_path(conn, params)
-
-        MyAppWeb.Router.Helpers.url(%URI{cur_uri | scheme: "https"}) <> cur_path
+        current_uri = MyAppWeb.Endpoint.struct_url()
+        current_path = Phoenix.Controller.current_path(conn, params)
+        Phoenix.VerifiedRoutes.unverified_url(%URI{current_uri | scheme: "https"}, current_path)
       end
 
   However, if you want all generated URLs to always have a certain schema,
   host, etc, you may use `put_router_url/2`.
   """
   def current_url(%Plug.Conn{} = conn, %{} = params) do
-    Phoenix.Router.Helpers.url(router_module(conn), conn) <> current_path(conn, params)
+    Phoenix.VerifiedRoutes.unverified_url(conn, current_path(conn, params))
   end
 
   @doc false

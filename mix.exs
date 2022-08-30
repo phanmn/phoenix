@@ -8,13 +8,13 @@ defmodule Phoenix.MixProject do
     end
   end
 
-  @version "1.6.4"
+  @version "1.7.0-dev"
   @scm_url "https://github.com/phoenixframework/phoenix"
 
   # If the elixir requirement is updated, we need to make the installer
   # use at least the minimum requirement used here. Although often the
   # installer is ahead of Phoenix itself.
-  @elixir_requirement "~> 1.9"
+  @elixir_requirement "~> 1.11"
 
   def project do
     [
@@ -41,10 +41,7 @@ defmodule Phoenix.MixProject do
       aliases: aliases(),
       source_url: @scm_url,
       homepage_url: "https://www.phoenixframework.org",
-      description: """
-      Productive. Reliable. Fast. A productive web framework that
-      does not compromise speed or maintainability.
-      """
+      description: "Peace of mind from prototype to production"
     ]
   end
 
@@ -56,6 +53,7 @@ defmodule Phoenix.MixProject do
       mod: {Phoenix, []},
       extra_applications: [:logger, :eex, :crypto, :public_key],
       env: [
+        browser_open: false,
         logger: true,
         stacktrace_depth: nil,
         filter_parameters: ["password"],
@@ -71,7 +69,7 @@ defmodule Phoenix.MixProject do
       {:plug, "~> 1.10"},
       {:plug_crypto, "~> 1.2"},
       {:telemetry, "~> 0.4 or ~> 1.0"},
-      {:phoenix_pubsub, "~> 2.0"},
+      {:phoenix_pubsub, "~> 2.1"},
       {:phoenix_view, "~> 1.0"},
 
       # Optional deps
@@ -82,17 +80,20 @@ defmodule Phoenix.MixProject do
       {:ex_doc, "~> 0.24", only: :docs},
       {:ecto, "~> 3.0", only: :docs},
       {:ecto_sql, "~> 3.6", only: :docs},
-      {:gettext, "~> 0.18", only: :docs},
+      {:gettext, "~> 0.20", only: :docs},
       {:telemetry_poller, "~> 1.0", only: :docs},
       {:telemetry_metrics, "~> 0.6", only: :docs},
+      {:makeup_eex, ">= 0.1.1", only: :docs},
+      {:makeup_elixir, "~> 0.16", only: :docs},
 
       # Test dependencies
       {:phoenix_html, "~> 3.0", only: [:docs, :test]},
       {:phx_new, path: "./installer", only: :test},
-      {:websocket_client, git: "https://github.com/jeremyong/websocket_client.git", only: :test},
+      {:mint, "~> 1.4", only: :test},
+      {:mint_web_socket, "~> 1.0.0", only: :test},
 
       # Dev dependencies
-      {:esbuild, "~> 0.3", only: :dev}
+      {:esbuild, "~> 0.5", only: :dev}
     ]
   end
 
@@ -117,6 +118,9 @@ defmodule Phoenix.MixProject do
       groups_for_modules: groups_for_modules(),
       extras: extras(),
       groups_for_extras: groups_for_extras(),
+      groups_for_functions: [
+        "Reflection": &(&1[:type] == :reflection)
+      ],
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"]
     ]
   end
@@ -181,6 +185,7 @@ defmodule Phoenix.MixProject do
     # Phoenix.Presence
     # Phoenix.Router
     # Phoenix.Token
+    # Phoenix.VerifiedRoutes
 
     [
       Testing: [
@@ -190,6 +195,10 @@ defmodule Phoenix.MixProject do
       "Adapters and Plugs": [
         Phoenix.CodeReloader,
         Phoenix.Endpoint.Cowboy2Adapter
+      ],
+      "Digester": [
+        Phoenix.Digester.Compressor,
+        Phoenix.Digester.Gzip
       ],
       "Socket and Transport": [
         Phoenix.Socket,

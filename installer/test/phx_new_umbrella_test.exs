@@ -45,6 +45,17 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
         assert file =~ "apps_path: \"apps\""
       end
 
+      # Phoenix.LiveView.HTMLFormatter
+      if Version.match?(System.version(), ">= 1.13.4") do
+        assert_file root_path(@app, "mix.exs"), fn file ->
+          assert file =~ "{:phoenix_live_view, \">= 0.0.0\"}"
+        end
+      else
+        assert_file root_path(@app, "mix.exs"), fn file ->
+          assert file =~ "defp deps do\n    []"
+        end
+      end
+
       assert_file app_path(@app, "mix.exs"), fn file ->
         assert file =~ "app: :phx_umb"
         assert file =~ ~S{build_path: "../../_build"}
@@ -76,16 +87,48 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
 
       assert_file root_path(@app, "config/runtime.exs"), ~r/ip: {0, 0, 0, 0, 0, 0, 0, 0}/
 
-      assert_file app_path(@app, ".formatter.exs"), fn file ->
-        assert file =~ "import_deps: [:ecto]"
-        assert file =~ "inputs: [\"*.{ex,exs}\", \"priv/*/seeds.exs\", \"{config,lib,test}/**/*.{ex,exs}\"]"
-        assert file =~ "subdirectories: [\"priv/*/migrations\"]"
-      end
+      if Version.match?(System.version(), ">= 1.13.4") do
+        assert_file root_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "plugins: [Phoenix.LiveView.HTMLFormatter]"
+          assert file =~ "inputs: [\"mix.exs\", \"config/*.exs\"]"
+          assert file =~ "subdirectories: [\"apps/*\"]"
+        end
 
-      assert_file web_path(@app, ".formatter.exs"), fn file ->
-        assert file =~ "inputs: [\"*.{ex,exs}\", \"{config,lib,test}/**/*.{ex,exs}\"]"
-        refute file =~ "import_deps: [:ecto]"
-        refute file =~ "subdirectories:"
+        assert_file app_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "import_deps: [:ecto]"
+          assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+          assert file =~ "plugins: [Phoenix.LiveView.HTMLFormatter]"
+          assert file =~ "inputs: [\"*.{heex,ex,exs}\", \"{config,lib,test}/**/*.{heex,ex,exs}\", \"priv/*/seeds.exs\"]"
+        end
+
+        assert_file web_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "import_deps: [:phoenix]"
+          assert file =~ "plugins: [Phoenix.LiveView.HTMLFormatter]"
+          assert file =~ "inputs: [\"*.{heex,ex,exs}\", \"{config,lib,test}/**/*.{heex,ex,exs}\"]"
+          refute file =~ "import_deps: [:ecto]"
+          refute file =~ "subdirectories:"
+        end
+      else
+        assert_file root_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "inputs: [\"mix.exs\", \"config/*.exs\"]"
+          assert file =~ "subdirectories: [\"apps/*\"]"
+          refute file =~ "plugins:"
+        end
+
+        assert_file app_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "import_deps: [:ecto]"
+          assert file =~ "subdirectories: [\"priv/*/migrations\"]"
+          assert file =~ "inputs: [\"*.{ex,exs}\", \"{config,lib,test}/**/*.{ex,exs}\", \"priv/*/seeds.exs\"]"
+          refute file =~ "plugins:"
+        end
+
+        assert_file web_path(@app, ".formatter.exs"), fn file ->
+          assert file =~ "import_deps: [:phoenix]"
+          assert file =~ "inputs: [\"*.{ex,exs}\", \"{config,lib,test}/**/*.{ex,exs}\"]"
+          refute file =~ "import_deps: [:ecto]"
+          refute file =~ "subdirectories:"
+          refute file =~ "plugins:"
+        end
       end
 
       assert_file app_path(@app, "lib/#{@app}/application.ex"), ~r/defmodule PhxUmb.Application do/
@@ -93,7 +136,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file app_path(@app, "lib/#{@app}.ex"), ~r/defmodule PhxUmb do/
       assert_file app_path(@app, "mix.exs"), fn file ->
         assert file =~ "mod: {PhxUmb.Application, []}"
-        assert file =~ "{:phoenix_pubsub, \"~> 2.0\"}"
+        assert file =~ "{:phoenix_pubsub, \"~> 2.1\"}"
       end
       assert_file app_path(@app, "test/test_helper.exs")
 
@@ -126,7 +169,11 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
                   ~r/defmodule PhxUmbWeb.PageView/
 
       assert_file web_path(@app, "lib/#{@app}_web/router.ex"), "defmodule PhxUmbWeb.Router"
-      assert_file web_path(@app, "lib/#{@app}_web/templates/layout/root.html.heex")
+
+      assert_file web_path(@app, "lib/#{@app}_web/templates/layout/root.html.heex"), fn file ->
+        assert file =~ ~s|<meta name="csrf-token" content={get_csrf_token()}>|
+      end
+
       assert_file web_path(@app, "lib/#{@app}_web/templates/layout/app.html.heex")
       assert_file web_path(@app, "test/#{@app}_web/views/page_view_test.exs"),
                   "defmodule PhxUmbWeb.PageViewTest"
@@ -134,7 +181,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       # assets
       assert_file web_path(@app, ".gitignore"), "/priv/static/assets/"
       assert_file web_path(@app, ".gitignore"), "#{@app}_web-*.tar"
-      assert_file web_path(@app, ".gitignore"),  ~r/\n$/
+      assert_file web_path(@app, ".gitignore"), ~r/\n$/
       assert_file web_path(@app, "assets/css/app.css")
       assert_file web_path(@app, "assets/css/phoenix.css")
 
@@ -231,12 +278,16 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       end
 
       assert_file root_path(@app, "config/config.exs"), fn file ->
-        assert file =~ "config :swoosh"
         assert file =~ "config :phx_umb, PhxUmb.Mailer, adapter: Swoosh.Adapters.Local"
       end
 
       assert_file root_path(@app, "config/test.exs"), fn file ->
+        assert file =~ "config :swoosh"
         assert file =~ "config :phx_umb, PhxUmb.Mailer, adapter: Swoosh.Adapters.Test"
+      end
+
+      assert_file root_path(@app, "config/dev.exs"), fn file ->
+        assert file =~ "config :swoosh"
       end
 
       # Install dependencies?
@@ -363,7 +414,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file web_path(@app, "mix.exs"), &refute(&1 =~ ~r":phoenix_live_dashboard")
 
       assert_file web_path(@app, "lib/#{@app}_web/templates/layout/app.html.heex"), fn file ->
-        refute file =~ ~s|<%= link "LiveDashboard", to: Routes.live_dashboard_path(@conn, :home)|
+        refute file =~ ~s|LiveDashboard|
       end
 
       assert_file web_path(@app, "lib/#{@app}_web/endpoint.ex"), fn file ->
@@ -394,6 +445,10 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
   test "new with --no-html" do
     in_tmp "new with no_html", fn ->
       Mix.Tasks.Phx.New.run([@app, "--umbrella", "--no-html"])
+
+      assert_file root_path(@app, "mix.exs"), fn file ->
+        assert file =~ "defp deps do\n    []"
+      end
 
       assert_file web_path(@app, "mix.exs"), fn file ->
         refute file =~ ~s|:phoenix_live_view|
@@ -503,8 +558,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file root_path(app, "config/test.exs"), [~r/username: "postgres"/, ~r/password: "postgres"/, ~r/hostname: "localhost"/]
       assert_file root_path(app, "config/runtime.exs"), [~r/url: database_url/]
 
-      assert_file web_path(app, "test/support/conn_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file web_path(app, "test/support/channel_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file web_path(app, "test/support/conn_case.ex"), "DataCase.setup_sandbox(tags)"
     end
   end
 
@@ -521,8 +575,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file root_path(app, "config/test.exs"), [~r/username: "root"/, ~r/password: ""/]
       assert_file root_path(app, "config/runtime.exs"), [~r/url: database_url/]
 
-      assert_file web_path(app, "test/support/conn_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file web_path(app, "test/support/channel_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file web_path(app, "test/support/conn_case.ex"), "DataCase.setup_sandbox(tags)"
     end
   end
 
@@ -539,8 +592,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file root_path(app, "config/test.exs"), [~r/database: .*_test.db/]
       assert_file root_path(app, "config/runtime.exs"), [~r/database: database_path/]
 
-      assert_file web_path(app, "test/support/conn_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file web_path(app, "test/support/channel_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file web_path(app, "test/support/conn_case.ex"), "DataCase.setup_sandbox(tags)"
 
       assert_file root_path(app, ".gitignore"), "*.db"
       assert_file root_path(app, ".gitignore"), "*.db-*"
@@ -560,8 +612,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
       assert_file root_path(app, "config/test.exs"), [~r/username: "sa"/, ~r/password: "some!Password"/]
       assert_file root_path(app, "config/runtime.exs"), [~r/url: database_url/]
 
-      assert_file web_path(app, "test/support/conn_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
-      assert_file web_path(app, "test/support/channel_case.ex"), "Ecto.Adapters.SQL.Sandbox.start_owner"
+      assert_file web_path(app, "test/support/conn_case.ex"), "DataCase.setup_sandbox(tags)"
     end
   end
 
@@ -694,7 +745,7 @@ defmodule Mix.Tasks.Phx.New.UmbrellaTest do
         assert_file "another/lib/another/templates/layout/app.html.heex"
 
         # assets
-        assert_file "another/.gitignore",  ~r/\n$/
+        assert_file "another/.gitignore", ~r/\n$/
         assert_file "another/priv/static/favicon.ico"
         assert_file "another/priv/static/images/phoenix.png"
         assert_file "another/assets/css/app.css"

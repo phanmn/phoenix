@@ -26,13 +26,13 @@ All of the imports and aliases we make in our view will also be available in our
 
 Open up our application layout template, `lib/hello_web/templates/layout/root.html.heex`, and change this line,
 
-```html
+```heex
 <%= live_title_tag assigns[:page_title] || "Hello", suffix: " · Phoenix Framework" %>
 ```
 
 to call a `title/0` function, like this.
 
-```html
+```heex
 <title><%= title() %></title>
 ```
 
@@ -50,7 +50,7 @@ end
 
 When we reload our home page, we should see our new title. Since templates are compiled inside the view, we could invoke the view function simply as `title()`, otherwise we would have to type `HelloWeb.LayoutView.title()`.
 
-As you may recall, Elixir templates use `.heex`, which stands for  "HTML+EEx". EEx is an Elixir library that uses `<%= expression %>` to execute Elixir expressions and interpolate their results into the template. This is frequently used to display assigns we have set by way of the `@` shortcut. In your controller, if you invoke:
+Our layouts and templates use the `.heex` extension, which stands for  "HTML+EEx". EEx is an Elixir library that uses `<%= expression %>` to execute Elixir expressions and interpolate their results into the template. This is frequently used to display assigns we have set by way of the `@` shortcut. In your controller, if you invoke:
 
 ```elixir
   render(conn, "show.html", username: "joe")
@@ -58,7 +58,7 @@ As you may recall, Elixir templates use `.heex`, which stands for  "HTML+EEx". E
 
 Then you can access said username in the templates as `<%= @username %>`. In addition to displaying assigns and functions, we can use pretty much any Elixir expression. For example, in order to have conditionals:
 
-```html
+```heex
 <%= if some_condition? do %>
   <p>Some condition is true for user: <%= @username %></p>
 <% else %>
@@ -68,7 +68,7 @@ Then you can access said username in the templates as `<%= @username %>`. In add
 
 or even loops:
 
-```html
+```heex
 <table>
   <tr>
     <th>Number</th>
@@ -85,23 +85,25 @@ or even loops:
 
 Did you notice the use of `<%= %>` versus `<% %>` above? All expressions that output something to the template **must** use the equals sign (`=`). If this is not included the code will still be executed but nothing will be inserted into the template.
 
+HEEx also comes with handy HTML extensions we will learn next.
+
 ### HTML extensions
 
 Besides allowing interpolation of Elixir expressions via `<%= %>`, `.heex` templates come with HTML-aware extensions. For example, let's see what happens if you try to interpolate a value with "<" or ">" in it, which would lead to HTML injection:
 
-```html
+```heex
 <%= "<b>Bold?</b>" %>
 ```
 
 Once you render the template, you will see the literal `<b>` on the page. This means users cannot inject HTML content on the page. If you want to allow them to do so, you can call `raw`, but do so with extreme care:
 
-```html
+```heex
 <%= raw "<b>Bold?</b>" %>
 ```
 
 Another super power of HEEx templates is validation of HTML and lean interpolation syntax of attributes. You can write:
 
-```html
+```heex
 <div title="My div" class={@class}>
   <p>Hello <%= @username %></p>
 </div>
@@ -111,7 +113,7 @@ Notice how you could simply use `key={value}`. HEEx will automatically handle sp
 
 To interpolate a dynamic number of attributes in a keyword list or map, do:
 
-```html
+```heex
 <div title="My div" {@many_attributes}>
   <p>Hello <%= @username %></p>
 </div>
@@ -125,13 +127,13 @@ The last feature provided by HEEx is the idea of components. Components are pure
 
 HEEx allows invoking those function components directly in the template using an HTML-like notation. For example, a remote function:
 
-```html
+```heex
 <MyApp.Weather.city name="Kraków"/>
 ```
 
 A local function can be invoked with a leading dot:
 
-```html
+```heex
 <.city name="Kraków"/>
 ```
 
@@ -157,7 +159,7 @@ end
 
 In the example above, we used the `~H` sigil syntax to embed HEEx templates directly into our modules. We have already invoked the `city` component and calling the `country` component wouldn't be different:
 
-```html
+```heex
 <div title="My div" {@many_attributes}>
   <p>Hello <%= @username %></p>
   <MyApp.Weather.country name="Brazil" />
@@ -200,7 +202,7 @@ So far, Phoenix has taken care of putting everything in place and rendering view
 
 Let's create a new template to play around with, `lib/hello_web/templates/page/test.html.heex`:
 
-```html
+```heex
 This is the message: <%= @message %>
 ```
 
@@ -236,7 +238,7 @@ Now that we have acquainted ourselves with `Phoenix.View.render/3`, we are ready
 
 For example, if you want to render the `test.html` template from inside our layout, you can invoke [`render/3`] directly from the layout `lib/hello_web/templates/layout/root.html.heex`:
 
-```html
+```heex
 <%= Phoenix.View.render(HelloWeb.PageView, "test.html", message: "Hello from layout!") %>
 ```
 
@@ -244,13 +246,13 @@ If you visit the [welcome page], you should see the message from the layout.
 
 Since `Phoenix.View` is automatically imported into our templates, we could even skip the `Phoenix.View` module name and simply invoke `render(...)` directly:
 
-```html
+```heex
 <%= render(HelloWeb.PageView, "test.html", message: "Hello from layout!") %>
 ```
 
 If you want to render a template within the same view, you can skip the view name, and simply call `render("test.html", message: "Hello from sibling template!")` instead. For example, open up `lib/hello_web/templates/page/index.html.heex` and add this at the top:
 
-```html
+```heex
 <%= render("test.html", message: "Hello from sibling template!") %>
 ```
 
@@ -260,7 +262,7 @@ Now if you visit the Welcome page, you see the template results also shown.
 
 Layouts are just templates. They have a view, just like other templates. In a newly generated app, this is `lib/hello_web/views/layout_view.ex`. You may be wondering how the string resulting from a rendered view ends up inside a layout. That's a great question! If we look at `lib/hello_web/templates/layout/root.html.heex`, just about at the end of the `<body>`, we will see this.
 
-```html
+```heex
 <%= @inner_content %>
 ```
 

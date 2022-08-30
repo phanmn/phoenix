@@ -11,7 +11,6 @@ defmodule <%= @app_module %>.MixProject do
       lockfile: "../../mix.lock",<% end %>
       elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: <%= if @gettext do %>[:gettext] ++ <% end %>Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps()
@@ -43,14 +42,15 @@ defmodule <%= @app_module %>.MixProject do
       {<%= inspect @adapter_app %>, ">= 0.0.0"},<% end %><%= if @html do %>
       {:phoenix_html, "~> 3.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.17.5"},
+      # TODO bump to 0.18 on release
+      {:phoenix_live_view, github: "phoenixframework/phoenix_live_view", override: true},
       {:floki, ">= 0.30.0", only: :test},<% end %><%= if @dashboard do %>
       {:phoenix_live_dashboard, "~> 0.6"},<% end %><%= if @assets do %>
-      {:esbuild, "~> 0.3", runtime: Mix.env() == :dev},<% end %><%= if @mailer do %>
+      {:esbuild, "~> 0.5", runtime: Mix.env() == :dev},<% end %><%= if @mailer do %>
       {:swoosh, "~> 1.3"},<% end %>
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},<%= if @gettext do %>
-      {:gettext, "~> 0.18"},<% end %>
+      {:gettext, "~> 0.20"},<% end %>
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"}
     ]

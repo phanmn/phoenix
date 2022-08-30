@@ -19,20 +19,23 @@ defmodule <%= @web_namespace %>.ConnCase do
 
   using do
     quote do
+      # The default endpoint for testing
+      @endpoint <%= @endpoint_module %>
+
+      use Phoenix.VerifiedRoutes,
+        endpoint: @endpoint,
+        router: <%= @web_namespace %>.Router,
+        statics: <%= @web_namespace %>.static_paths()
+
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
       import <%= @web_namespace %>.ConnCase
-
-      alias <%= @web_namespace %>.Router.Helpers, as: Routes
-
-      # The default endpoint for testing
-      @endpoint <%= @endpoint_module %>
     end
   end<%= if @ecto do %>
 
   setup tags do
-<%= @adapter_config[:test_setup] %>
+    <%= @app_module %>.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end<% else %>
 
